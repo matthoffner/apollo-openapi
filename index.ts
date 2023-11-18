@@ -1,14 +1,11 @@
 import {
   GraphQLSchema,
   GraphQLObjectType,
-  GraphQLScalarType,
-  GraphQLNonNull,
-  GraphQLList,
   GraphQLOutputType
 } from 'graphql';
+import { createScalarMock, determineGraphQLType, isScalarType } from './util';
 
 function createMockResponse(returnType: GraphQLOutputType, fieldName: string): object {
-  // If the returnType is a scalar type, return directly
   if (isScalarType(returnType)) {
     return { data: { [fieldName]: createScalarMock(returnType) } };
   }
@@ -28,60 +25,6 @@ function createMockResponse(returnType: GraphQLOutputType, fieldName: string): o
 
   // Fallback for other types (lists, enums, etc.)
   return { data: { [fieldName]: {} } };
-}
-
-function createScalarMock(type: GraphQLOutputType): any {
-  if (type instanceof GraphQLScalarType || type instanceof GraphQLNonNull || type instanceof GraphQLList) {
-    switch (type.toString()) {
-      case 'String':
-        return 'Sample string';
-      case 'Int':
-        return 123;
-      case 'Float':
-        return 123.45;
-      case 'Boolean':
-        return true;
-      default:
-        return null;
-    }
-  }
-  return null;
-}
-
-function isScalarType(type: GraphQLOutputType): boolean {
-  return (
-    type instanceof GraphQLScalarType ||
-    (type instanceof GraphQLNonNull && isScalarType(type.ofType)) ||
-    (type instanceof GraphQLList && isScalarType(type.ofType))
-  );
-}
-
-function determineGraphQLType(type: GraphQLOutputType): string {
-  if (type instanceof GraphQLScalarType) {
-    switch (type.name) {
-      case 'String':
-        return 'string';
-      case 'Int':
-        return 'integer';
-      case 'Float':
-        return 'number';
-      case 'Boolean':
-        return 'boolean';
-      case 'ID':
-        return 'string'; // ID is often represented as a string in OpenAPI
-      // Add more scalar types if your schema uses them
-      default:
-        return 'unknown';
-    }
-  } else if (type instanceof GraphQLNonNull) {
-    // Non-null type, check the inner type
-    return determineGraphQLType(type.ofType);
-  } else if (type instanceof GraphQLList) {
-    // For lists, you can either return 'array' or handle more specifically
-    return 'array';
-  }
-  // Add handling for other types like enums, objects, etc.
-  return 'unknown';
 }
 
 
@@ -112,7 +55,7 @@ function exampleMaker(schema: GraphQLSchema, exampleValues: any) {
             query: query,
             variables: exampleVariables
           },
-          response: mockResponse // Include the mock response
+          response: mockResponse
         };
       });
     }
@@ -214,7 +157,7 @@ function createResponseSchema(schemaRef: string): Record<string, any> {
       content: {
         'application/json': {
           schema: {
-            $ref: `#/components/schemas/${schemaRef}`  // Correctly reference the schema
+            $ref: `#/components/schemas/${schemaRef}`
           }
         }
       }
