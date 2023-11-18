@@ -27,7 +27,15 @@ function exampleMaker(schema: any) {
 }
 
 
-export const generateOpenAPISchema = (graphQLSchema: any, serverUrl = '/graphql', title = 'GraphQL API', openapi: '3.0.3', version: '1.0.0', summary = 'GraphQL Endpoint', description = 'Endpoint for all GraphQL queries and mutations') => {
+export const generateOpenAPISchema = (
+  graphQLSchema: any, 
+  serverUrl: string = '/graphql', 
+  title: string = 'GraphQL API', 
+  openapi: string = '3.0.3', 
+  version: string = '1.0.0', 
+  summary: string = 'GraphQL Endpoint', 
+  description: string = 'Endpoint for all GraphQL queries and mutations'
+) => {
     const examples = exampleMaker(graphQLSchema);
   
     return {

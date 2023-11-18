@@ -18,6 +18,8 @@
     "swagger-ui-express": "^5.0.0"
   },
   "devDependencies": {
-    "eslint": "^8.53.0"
+    "@types/swagger-ui-express": "^4.1.6",
+    "eslint": "^8.53.0",
+    "ts-node": "^10.9.1"
   }
 }
