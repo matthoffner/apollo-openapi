@@ -6,7 +6,6 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { gql } from 'graphql-tag';
 import { generateOpenAPISchema } from '.';
 
-
 const exampleValues: Record<string, any> = {
   message: 'Hello world!',
 };
@@ -45,7 +44,6 @@ const swaggerOptions = {
       },
     }
 };
-
 
 // Create an executable schema
 const schema = makeExecutableSchema({ typeDefs, resolvers });
