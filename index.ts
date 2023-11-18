@@ -1,5 +1,5 @@
-import { GraphQLSchema } from 'graphql';
 import {
+  GraphQLSchema,
   GraphQLObjectType,
   GraphQLScalarType,
   GraphQLNonNull,
@@ -54,6 +54,34 @@ function isScalarType(type: GraphQLOutputType): boolean {
     (type instanceof GraphQLNonNull && isScalarType(type.ofType)) ||
     (type instanceof GraphQLList && isScalarType(type.ofType))
   );
+}
+
+function determineGraphQLType(type: GraphQLOutputType): string {
+  if (type instanceof GraphQLScalarType) {
+    switch (type.name) {
+      case 'String':
+        return 'string';
+      case 'Int':
+        return 'integer';
+      case 'Float':
+        return 'number';
+      case 'Boolean':
+        return 'boolean';
+      case 'ID':
+        return 'string'; // ID is often represented as a string in OpenAPI
+      // Add more scalar types if your schema uses them
+      default:
+        return 'unknown';
+    }
+  } else if (type instanceof GraphQLNonNull) {
+    // Non-null type, check the inner type
+    return determineGraphQLType(type.ofType);
+  } else if (type instanceof GraphQLList) {
+    // For lists, you can either return 'array' or handle more specifically
+    return 'array';
+  }
+  // Add handling for other types like enums, objects, etc.
+  return 'unknown';
 }
 
 
@@ -179,15 +207,14 @@ interface OpenApiOperation {
 
 type Paths = Record<string, OpenApiOperation>;
 
-function createResponseSchema(mockResponse: object): Record<string, any> {
+function createResponseSchema(schemaRef: string): Record<string, any> {
   return {
     '200': {
       description: 'Successful GraphQL response',
       content: {
         'application/json': {
           schema: {
-            type: 'object',
-            example: mockResponse
+            $ref: `#/components/schemas/${schemaRef}`  // Correctly reference the schema
           }
         }
       }
@@ -196,18 +223,35 @@ function createResponseSchema(mockResponse: object): Record<string, any> {
 }
 
 export const generateOpenAPISchema = (
-  graphQLSchema: any, 
+  graphQLSchema: GraphQLSchema, 
   options: Partial<OpenApiSchemaOptions> = {}
 ) => {
   const { serverUrl, title, openapi, version, summary, description, exampleValues } = { ...defaultOptions, ...options };
   const examples = exampleMaker(graphQLSchema, exampleValues);
 
   let paths: Paths = {};
+  let components: { schemas: Record<string, any> } = { schemas: {} };
 
   for (const [exampleName, exampleData] of Object.entries(examples)) {
     const example = exampleData as Example;
-    const path = `/${exampleName}`;
-    paths[path] = {
+
+    // Define a schema for each response in the components section
+    components.schemas[`${exampleName}Response`] = {
+      type: 'object',
+      properties: {
+        // Assuming the response structure is similar to the one in createMockResponse function
+        // Update this part to reflect the actual structure of your GraphQL responses
+        data: {
+          type: 'object',
+          properties: Object.keys(example.response.data).reduce((acc, key) => {
+            acc[key] = { type: determineGraphQLType(example.response.data[key]) }; // A helper function to determine the type
+            return acc;
+          }, {} as Record<string, { type: string }>)
+        }
+      }
+    };
+
+    paths[`/${exampleName}`] = {
       post: {
         summary: example.summary,
         description: `Example for ${exampleName}`,
@@ -242,7 +286,7 @@ export const generateOpenAPISchema = (
             }
           }
         },
-        responses: createResponseSchema(example.response)
+        responses: createResponseSchema(`${exampleName}Response`)
       }
     };
   }
@@ -254,7 +298,7 @@ export const generateOpenAPISchema = (
       version,
     },
     servers: [{ url: serverUrl }],
-    paths: paths
+    paths: paths,
+    components: components
   };
 };
-
