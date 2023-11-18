@@ -4,35 +4,7 @@ import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { gql } from 'graphql-tag';
-
-// Function to generate example queries and mutations
-function exampleMaker(schema: any) {
-    const typeMap = schema.getTypeMap();
-    let examples = {};
-  
-    for (let typeName in typeMap) {
-      if (typeName === 'Query' || typeName === 'Mutation') {
-        const fields = typeMap[typeName].getFields();
-  
-        for (let fieldName in fields) {
-          const field = fields[fieldName];
-          // @ts-ignore
-          let args = field.args.map(arg => arg.name + ': ' + JSON.stringify('value'));
-          let operation = typeName === 'Query' ? 'query' : 'mutation';
-          let exampleValue = {
-            query: `${operation} { ${fieldName}${args.length > 0 ? '(' + args.join(', ') + ')' : ''} }`
-          };
-          // @ts-ignore
-          examples[`${fieldName}Example`] = {
-            summary: `Example ${typeName}`,
-            value: exampleValue
-          };
-        }
-      }
-    }
-  
-    return examples;
-}
+import { generateOpenAPISchema } from '.';
 
 // Define your type definitions (GraphQL schema)
 const typeDefs = gql`
@@ -66,14 +38,13 @@ const swaggerOptions = {
         // Add any other necessary headers here
         return req;
       },
-    },
-  };
-
+    }
+};
 
 
 // Create an executable schema
 const schema = makeExecutableSchema({ typeDefs, resolvers });
-const examples = exampleMaker(schema);
+
 // Initialize Apollo Server with the schema
 const server = new ApolloServer({ schema });
 
@@ -92,58 +63,7 @@ async function startServer() {
   }));
 
   // Manually define OpenAPI JSON
-  const openApiSchema = {
-    openapi: '3.0.3',
-    info: {
-      title: 'GraphQL API',
-      version: '1.0.0',
-    },
-    servers: [{ url: '/graphql' }],
-    paths: {
-      '/graphql': {
-        post: {
-          summary: 'GraphQL Endpoint',
-          description: 'Endpoint for all GraphQL queries and mutations',
-          requestBody: {
-            description: 'GraphQL Query or Mutation',
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  properties: {
-                    query: {
-                      type: 'string',
-                      description: 'GraphQL Query or Mutation'
-                    },
-                    variables: {
-                      type: 'object',
-                      additionalProperties: true,
-                      description: 'Variables for the query or mutation'
-                    }
-                  },
-                  required: ['query']
-                },
-                examples: examples
-              }
-            }
-          },
-          responses: {
-            '200': {
-              description: 'Successful GraphQL response',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    additionalProperties: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  };
+  const openApiSchema = generateOpenAPISchema(schema, '/graphql');
 
   // Serve Swagger UI for OpenAPI documentation
   // @ts-ignore
