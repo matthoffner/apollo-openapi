@@ -6,6 +6,11 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { gql } from 'graphql-tag';
 import { generateOpenAPISchema } from '.';
 
+
+const exampleValues: Record<string, any> = {
+  message: 'Hello world!',
+};
+
 // Define your type definitions (GraphQL schema)
 const typeDefs = gql`
   type Query {
@@ -63,7 +68,7 @@ async function startServer() {
   }));
 
   // Manually define OpenAPI JSON
-  const openApiSchema = generateOpenAPISchema(schema);
+  const openApiSchema = generateOpenAPISchema(schema, { exampleValues });
 
   // Serve Swagger UI for OpenAPI documentation
   // @ts-ignore

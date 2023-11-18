@@ -1,6 +1,6 @@
 import { GraphQLSchema, GraphQLObjectType } from 'graphql';
 
-function exampleMaker(schema: GraphQLSchema) {
+function exampleMaker(schema: GraphQLSchema, exampleValues: any) {
   const typeMap = schema.getTypeMap();
   let examples: Record<string, Example> = {};
 
@@ -9,15 +9,24 @@ function exampleMaker(schema: GraphQLSchema) {
       const fields = type.getFields();
 
       Object.values(fields).forEach((field) => {
-        let args = field.args.map(arg => `${arg.name}: ${JSON.stringify('value')}`);
+        let args = field.args.map(arg => `${arg.name}: $${arg.name}`);
+        let vars = field.args.map(arg => `$${arg.name}: ${arg.type}`);
         let operation = type.name === 'Query' ? 'query' : 'mutation';
-        let exampleValue = {
-          query: `${operation} { ${field.name}${args.length > 0 ? '(' + args.join(', ') + ')' : ''} }`
-        };
+        let query = `${operation} ${field.name}${vars.length > 0 ? '(' + vars.join(', ') + ')' : ''} { ${field.name}${args.length > 0 ? '(' + args.join(', ') + ')' : ''} }`;
+
+        let exampleVariables = field.args.reduce((acc, arg) => {
+          // Default value for the example, adjust as needed
+          // @ts-ignore
+          acc[arg.name] = exampleValues[arg.name] || 'value';
+          return acc;
+        }, {});
 
         examples[`${field.name}Example`] = {
           summary: `Example ${type.name}`,
-          value: exampleValue
+          value: {
+            query: query,
+            variables: exampleVariables
+          }
         };
       });
     }
@@ -33,6 +42,7 @@ interface OpenApiSchemaOptions {
   version: string;
   summary: string;
   description: string;
+  exampleValues: object;
 }
 
 const defaultOptions: OpenApiSchemaOptions = {
@@ -41,32 +51,9 @@ const defaultOptions: OpenApiSchemaOptions = {
   openapi: '3.0.3',
   version: '1.0.0',
   summary: 'GraphQL Endpoint',
-  description: 'Endpoint for all GraphQL queries and mutations'
+  description: 'Endpoint for all GraphQL queries and mutations',
+  exampleValues: {}
 };
-
-const createRequestBodySchema = (examples: any) => ({
-  description: 'GraphQL Query or Mutation',
-  content: {
-    'application/json': {
-      schema: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'GraphQL Query or Mutation'
-          },
-          variables: {
-            type: 'object',
-            additionalProperties: true,
-            description: 'Variables for the query or mutation'
-          }
-        },
-        required: ['query']
-      },
-      examples: examples
-    }
-  }
-});
 
 const createResponseSchema = () => ({
   '200': {
@@ -86,7 +73,9 @@ interface Example {
   summary: string;
   value: {
     query: string;
-  }
+    variables?: Record<string, any>;
+    operationName?: string;
+  };
 }
 
 interface OpenApiOperation {
@@ -99,20 +88,46 @@ interface OpenApiOperation {
       content: {
         'application/json': {
           schema: {
-            type: string;
+            type: 'object';
             properties: {
               query: {
-                type: string;
-                example: string;
+                type: 'string';
+                example?: string;
               };
-              // Add other properties if needed
+              variables?: {
+                type: 'object';
+                additionalProperties: boolean;
+                example?: any;
+              };
+              operationName?: {
+                type: 'string';
+                example?: string;
+              };
             };
             required: string[];
           };
         };
       };
     };
-    responses: any;
+    responses: {
+      [statusCode: string]: {
+        description: string;
+        content?: {
+          [contentType: string]: {
+            schema: {
+              type: string;
+              properties?: {
+                [propName: string]: {
+                  type: string;
+                  // Add other schema properties as needed
+                };
+              };
+              // Add other schema fields as needed
+            };
+          };
+        };
+      };
+    };
   };
 }
 
@@ -122,13 +137,13 @@ export const generateOpenAPISchema = (
   graphQLSchema: any, 
   options: Partial<OpenApiSchemaOptions> = {}
 ) => {
-  const { serverUrl, title, openapi, version, summary, description } = { ...defaultOptions, ...options };
-  const examples = exampleMaker(graphQLSchema);
+  const { serverUrl, title, openapi, version, summary, description, exampleValues } = { ...defaultOptions, ...options };
+  const examples = exampleMaker(graphQLSchema, exampleValues);
 
   let paths: Paths = {};
 
   for (const [exampleName, exampleData] of Object.entries(examples)) {
-    const example = exampleData as Example
+    const example = exampleData as Example;
     const path = `/${exampleName}`;
     paths[path] = {
       post: {
@@ -145,7 +160,20 @@ export const generateOpenAPISchema = (
                   query: {
                     type: 'string',
                     example: example.value.query
-                  }
+                  },
+                  ...(example.value.variables && {
+                    variables: {
+                      type: 'object',
+                      additionalProperties: true,
+                      example: example.value.variables
+                    }
+                  }),
+                  ...(example.value.operationName && {
+                    operationName: {
+                      type: 'string',
+                      example: example.value.operationName
+                    }
+                  })
                 },
                 required: ['query']
               }
@@ -154,8 +182,9 @@ export const generateOpenAPISchema = (
         },
         responses: createResponseSchema()
       }
-    };
-  }
+      };
+    }
+  
 
   return {
     openapi,
