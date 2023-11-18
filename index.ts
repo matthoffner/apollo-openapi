@@ -26,69 +26,116 @@ function exampleMaker(schema: any) {
     return examples;
 }
 
+interface OpenApiSchemaOptions {
+  serverUrl: string;
+  title: string;
+  openapi: string;
+  version: string;
+  summary: string;
+  description: string;
+}
+
+const defaultOptions: OpenApiSchemaOptions = {
+  serverUrl: '/graphql',
+  title: 'GraphQL API',
+  openapi: '3.0.3',
+  version: '1.0.0',
+  summary: 'GraphQL Endpoint',
+  description: 'Endpoint for all GraphQL queries and mutations'
+};
+
+const createRequestBodySchema = (examples: any) => ({
+  description: 'GraphQL Query or Mutation',
+  content: {
+    'application/json': {
+      schema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'GraphQL Query or Mutation'
+          },
+          variables: {
+            type: 'object',
+            additionalProperties: true,
+            description: 'Variables for the query or mutation'
+          }
+        },
+        required: ['query']
+      },
+      examples: examples
+    }
+  }
+});
+
+const createResponseSchema = () => ({
+  '200': {
+    description: 'Successful GraphQL response',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          additionalProperties: true
+        }
+      }
+    }
+  }
+});
+
+interface Example {
+  summary: string;
+  value: {
+    query: string;
+  }
+}
 
 export const generateOpenAPISchema = (
   graphQLSchema: any, 
-  serverUrl: string = '/graphql', 
-  title: string = 'GraphQL API', 
-  openapi: string = '3.0.3', 
-  version: string = '1.0.0', 
-  summary: string = 'GraphQL Endpoint', 
-  description: string = 'Endpoint for all GraphQL queries and mutations'
+  options: Partial<OpenApiSchemaOptions> = {}
 ) => {
-    const examples = exampleMaker(graphQLSchema);
-  
-    return {
-      openapi: openapi,
-      info: {
-        title: title,
-        version: version,
-      },
-      servers: [{ url: serverUrl }],
-      paths: {
-        [serverUrl]: {
-          post: {
-            summary: summary,
-            description: description,
-            requestBody: {
-              description: 'GraphQL Query or Mutation',
-              content: {
-                'application/json': {
-                  schema: {
-                    type: 'object',
-                    properties: {
-                      query: {
-                        type: 'string',
-                        description: 'GraphQL Query or Mutation'
-                      },
-                      variables: {
-                        type: 'object',
-                        additionalProperties: true,
-                        description: 'Variables for the query or mutation'
-                      }
-                    },
-                    required: ['query']
-                  },
-                  examples: examples
-                }
-              }
-            },
-            responses: {
-              '200': {
-                description: 'Successful GraphQL response',
-                content: {
-                  'application/json': {
-                    schema: {
-                      type: 'object',
-                      additionalProperties: true
-                    }
+  const { serverUrl, title, openapi, version, summary, description } = { ...defaultOptions, ...options };
+  const examples = exampleMaker(graphQLSchema);
+  console.log(examples);
+
+  let paths: any = {};
+
+  for (const [exampleName, exampleData] of Object.entries(examples)) {
+    const example = exampleData as Example
+    const path = `/${exampleName}`;
+    paths[path] = {
+      post: {
+        summary: example.summary,
+        description: `Example for ${exampleName}`,
+        requestBody: {
+          description: `Request for ${exampleName}`,
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  query: {
+                    type: 'string',
+                    example: example.value.query
                   }
-                }
+                },
+                required: ['query']
               }
             }
           }
-        }
+        },
+        responses: createResponseSchema() // Assuming this is a function that creates a generic response schema
       }
     };
   }
-  
+
+  return {
+    openapi,
+    info: {
+      title,
+      version,
+    },
+    servers: [{ url: serverUrl }],
+    paths: paths
+  };
+};

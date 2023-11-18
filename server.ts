@@ -63,7 +63,7 @@ async function startServer() {
   }));
 
   // Manually define OpenAPI JSON
-  const openApiSchema = generateOpenAPISchema(schema, '/graphql');
+  const openApiSchema = generateOpenAPISchema(schema);
 
   // Serve Swagger UI for OpenAPI documentation
   // @ts-ignore
