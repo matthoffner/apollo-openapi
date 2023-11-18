@@ -1,0 +1,23 @@
+{
+  "name": "apollo-openapi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint",
+    "start": "ts-node server.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@apollo/server": "^4.9.5",
+    "express": "^4.18.2",
+    "graphql": "^16.8.1",
+    "graphql-tag": "^2.12.6",
+    "swagger-ui-express": "^5.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.53.0"
+  }
+}
