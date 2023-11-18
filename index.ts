@@ -1,68 +1,7 @@
 import {
-  GraphQLSchema,
-  GraphQLObjectType,
-  GraphQLOutputType
+  GraphQLSchema
 } from 'graphql';
-import { createScalarMock, determineGraphQLType, isScalarType } from './util';
-
-function createMockResponse(returnType: GraphQLOutputType, fieldName: string): object {
-  if (isScalarType(returnType)) {
-    return { data: { [fieldName]: createScalarMock(returnType) } };
-  }
-
-  // If the returnType is an object type, create a mock object
-  if (returnType instanceof GraphQLObjectType) {
-    let mockObject: Record<string, any> = {};
-    const fields = returnType.getFields();
-
-    for (const [fieldKey, field] of Object.entries(fields)) {
-      // For simplicity, assume field types are scalar
-      mockObject[fieldKey] = createScalarMock(field.type);
-    }
-
-    return { data: mockObject };
-  }
-
-  // Fallback for other types (lists, enums, etc.)
-  return { data: { [fieldName]: {} } };
-}
-
-
-function exampleMaker(schema: GraphQLSchema, exampleValues: any) {
-  const typeMap = schema.getTypeMap();
-  let examples: Record<string, Example> = {};
-
-  Object.values(typeMap).forEach((type) => {
-    if (type instanceof GraphQLObjectType && (type.name === 'Query' || type.name === 'Mutation')) {
-      const fields = type.getFields();
-
-      Object.values(fields).forEach((field) => {
-        let args = field.args.map(arg => `${arg.name}: $${arg.name}`);
-        let vars = field.args.map(arg => `$${arg.name}: ${arg.type}`);
-        let operation = type.name === 'Query' ? 'query' : 'mutation';
-        let query = `${operation} ${field.name}${vars.length > 0 ? '(' + vars.join(', ') + ')' : ''} { ${field.name}${args.length > 0 ? '(' + args.join(', ') + ')' : ''} }`;
-
-        let exampleVariables = field.args.reduce((acc, arg) => {
-          // @ts-ignore
-          acc[arg.name] = exampleValues[arg.name] || 'value'; // Default value
-          return acc;
-        }, {});
-        let mockResponse = createMockResponse(field.type, field.name);
-
-        examples[field.name] = {
-          summary: `Example ${type.name}`,
-          value: {
-            query: query,
-            variables: exampleVariables
-          },
-          response: mockResponse
-        };
-      });
-    }
-  });
-
-  return examples;
-}
+import { Example, determineGraphQLType, exampleMaker } from './util';
 
 interface OpenApiSchemaOptions {
   serverUrl: string;
@@ -83,17 +22,6 @@ const defaultOptions: OpenApiSchemaOptions = {
   description: 'Endpoint for all GraphQL queries and mutations',
   exampleValues: {}
 };
-
-
-interface Example {
-  summary: string;
-  value: {
-    query: string;
-    variables?: Record<string, any>;
-    operationName?: string;
-  };
-  response: any;
-}
 
 interface OpenApiOperation {
   post: {
