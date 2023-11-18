@@ -1,29 +1,29 @@
-function exampleMaker(schema: any) {
-    const typeMap = schema.getTypeMap();
-    let examples = {};
-  
-    for (let typeName in typeMap) {
-      if (typeName === 'Query' || typeName === 'Mutation') {
-        const fields = typeMap[typeName].getFields();
-  
-        for (let fieldName in fields) {
-          const field = fields[fieldName];
-          // @ts-ignore
-          let args = field.args.map(arg => arg.name + ': ' + JSON.stringify('value'));
-          let operation = typeName === 'Query' ? 'query' : 'mutation';
-          let exampleValue = {
-            query: `${operation} { ${fieldName}${args.length > 0 ? '(' + args.join(', ') + ')' : ''} }`
-          };
-          // @ts-ignore
-          examples[`${fieldName}Example`] = {
-            summary: `Example ${typeName}`,
-            value: exampleValue
-          };
-        }
-      }
+import { GraphQLSchema, GraphQLObjectType } from 'graphql';
+
+function exampleMaker(schema: GraphQLSchema) {
+  const typeMap = schema.getTypeMap();
+  let examples: Record<string, Example> = {};
+
+  Object.values(typeMap).forEach((type) => {
+    if (type instanceof GraphQLObjectType && (type.name === 'Query' || type.name === 'Mutation')) {
+      const fields = type.getFields();
+
+      Object.values(fields).forEach((field) => {
+        let args = field.args.map(arg => `${arg.name}: ${JSON.stringify('value')}`);
+        let operation = type.name === 'Query' ? 'query' : 'mutation';
+        let exampleValue = {
+          query: `${operation} { ${field.name}${args.length > 0 ? '(' + args.join(', ') + ')' : ''} }`
+        };
+
+        examples[`${field.name}Example`] = {
+          summary: `Example ${type.name}`,
+          value: exampleValue
+        };
+      });
     }
-  
-    return examples;
+  });
+
+  return examples;
 }
 
 interface OpenApiSchemaOptions {
@@ -89,15 +89,43 @@ interface Example {
   }
 }
 
+interface OpenApiOperation {
+  post: {
+    summary: string;
+    description: string;
+    requestBody: {
+      description: string;
+      required: boolean;
+      content: {
+        'application/json': {
+          schema: {
+            type: string;
+            properties: {
+              query: {
+                type: string;
+                example: string;
+              };
+              // Add other properties if needed
+            };
+            required: string[];
+          };
+        };
+      };
+    };
+    responses: any;
+  };
+}
+
+type Paths = Record<string, OpenApiOperation>;
+
 export const generateOpenAPISchema = (
   graphQLSchema: any, 
   options: Partial<OpenApiSchemaOptions> = {}
 ) => {
   const { serverUrl, title, openapi, version, summary, description } = { ...defaultOptions, ...options };
   const examples = exampleMaker(graphQLSchema);
-  console.log(examples);
 
-  let paths: any = {};
+  let paths: Paths = {};
 
   for (const [exampleName, exampleData] of Object.entries(examples)) {
     const example = exampleData as Example
@@ -124,7 +152,7 @@ export const generateOpenAPISchema = (
             }
           }
         },
-        responses: createResponseSchema() // Assuming this is a function that creates a generic response schema
+        responses: createResponseSchema()
       }
     };
   }
