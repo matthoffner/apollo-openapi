@@ -43,7 +43,8 @@ const swaggerOptions = {
         // Add any other necessary headers here
         return req;
       },
-    }
+    },
+    customCss: '.swagger-ui .topbar { display: none }'
 };
 
 // Create an executable schema
