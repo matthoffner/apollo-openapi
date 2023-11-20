@@ -25,6 +25,8 @@ const defaultOptions: OpenApiSchemaOptions = {
 
 interface OpenApiOperation {
   post: {
+    operationId?: string;
+    'x-openai-isConsequential'?: boolean;
     summary: string;
     description: string;
     requestBody: {
@@ -124,6 +126,8 @@ export const generateOpenAPISchema = (
 
     paths[`/${exampleName}`] = {
       post: {
+        operationId: exampleName,
+        'x-openai-isConsequential': false,
         summary: example.summary,
         description: `Example for ${exampleName}`,
         requestBody: {

@@ -1,6 +1,7 @@
 import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import express from 'express';
+import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { gql } from 'graphql-tag';
@@ -52,9 +53,16 @@ const schema = makeExecutableSchema({ typeDefs, resolvers });
 const server = new ApolloServer({ schema });
 
 // Initialize Express
+const corsOptions = {
+  origin: ['http://localhost:4000', 'https://chat.openai.com'], // Add other domains as needed
+  methods: ['GET', 'POST'] // Adjust methods as per your API requirements
+};
 const app = express();
 app.use(express.json()); // for parsing application/json
 app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+
+const PORT = 4000;
 
 // Start Apollo Server
 async function startServer() {
@@ -69,7 +77,6 @@ async function startServer() {
   const openApiSchema = generateOpenAPISchema(schema, { exampleValues });
 
   // Serve Swagger UI for OpenAPI documentation
-  // @ts-ignore
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSchema, swaggerOptions));
 
   // Express route to serve OpenAPI JSON
@@ -78,7 +85,6 @@ async function startServer() {
   });
 
   // Start the Express server
-  const PORT = 4000;
   app.listen(PORT, () => {
     console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
     console.log(`🚀 OpenAPI JSON available at http://localhost:${PORT}/openapi.json`);
