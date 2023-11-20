@@ -6,49 +6,46 @@ import swaggerUi from 'swagger-ui-express';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { gql } from 'graphql-tag';
 import { generateOpenAPISchema } from '.';
+import { IResolvers } from "@graphql-tools/utils";
 
 const exampleValues: Record<string, any> = {
-  message: 'Hello world!',
+  email: 'test@example.com',
 };
 
-// Define your type definitions (GraphQL schema)
 const typeDefs = gql`
   type Query {
-    hello: String
+    findServices: String
   }
 
   type Mutation {
-    updateMessage(message: String!): String
+    submitRequest(email: String!): String
   }
 `;
 
-// Define your resolvers
-const resolvers = {
-    Query: {
-      hello: () => 'Hello world!',
-    },
-    Mutation: {
-        // @ts-ignore
-      updateMessage: (_, { message }): string => {
-        return `Updated message: ${message}`;
-      },
-    }
+const resolvers: IResolvers = {
+  Query: {
+    findServices: (): string => 'Service found!',
+  },
+  Mutation: {
+    submitRequest: (_: any, { email }: { email: string }): string => `Request submitted: ${email}`,
+  }
 };
 
+
 const routeMap = {
-  'hello': {
+  'findServices': {
     tags: {
-      name: 'hello-endpoint',
-      description: 'Product facing description for endpoint'
+      name: 'findServices-endpoint',
+      description: 'Endpoint for finding services'
     }
   },
-  'updateMessage': {
+  'submitRequest': {
     tags: {
-      name: 'updateMessage-endpoint',
-      description: 'Product facing description for endpoint'
+      name: 'submitRequest-endpoint',
+      description: 'Endpoint for submitting requests'
     }
   }
-}
+};
   
 // Custom Swagger UI configuration
 const swaggerOptions = {
@@ -62,10 +59,8 @@ const swaggerOptions = {
     customCss: '.swagger-ui .topbar { display: none }'
 };
 
-// Create an executable schema
 const schema = makeExecutableSchema({ typeDefs, resolvers });
 
-// Initialize Apollo Server with the schema
 const server = new ApolloServer({ schema });
 
 // Initialize Express
@@ -90,7 +85,7 @@ async function startServer() {
   }));
 
   // Manually define OpenAPI JSON
-  const openApiSchema = generateOpenAPISchema(schema, { exampleValues, routeMap });
+  const openApiSchema = generateOpenAPISchema(schema, { serverUrl: "/graphql", exampleValues, routeMap });
 
   // Serve Swagger UI for OpenAPI documentation
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSchema, swaggerOptions));
