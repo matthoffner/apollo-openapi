@@ -4,7 +4,8 @@ import {
   GraphQLList,
   GraphQLOutputType,
   GraphQLObjectType,
-  GraphQLSchema
+  GraphQLSchema,
+  GraphQLEnumType
 } from 'graphql';
 
 
@@ -16,6 +17,7 @@ export interface Example {
     operationName?: string;
   };
   response: any;
+  operation: string;
 }
 
 function createMockResponse(returnType: GraphQLOutputType, fieldName: string): object {
@@ -67,7 +69,8 @@ export function exampleMaker(schema: GraphQLSchema, exampleValues: any) {
             query: query,
             variables: exampleVariables
           },
-          response: mockResponse
+          response: mockResponse,
+          operation: operation
         };
       });
     }
@@ -117,15 +120,21 @@ export function determineGraphQLType(type: GraphQLOutputType): string {
       case 'ID':
         return 'string'; // ID is often represented as a string in OpenAPI
       default:
-        return 'unknown';
+        return 'unknown'; // Consider handling custom scalar types here
     }
   } else if (type instanceof GraphQLNonNull) {
     // Non-null type, check the inner type
     return determineGraphQLType(type.ofType);
   } else if (type instanceof GraphQLList) {
-    // For lists, you can either return 'array' or handle more specifically
+    // For lists, specify the type of items in the list
     return 'array';
+  } else if (type instanceof GraphQLObjectType) {
+    // Handle object types, possibly by referencing a defined schema or inline defining the object structure
+    return 'object';
+  } else if (type instanceof GraphQLEnumType) {
+    // Handle enum types
+    return 'enum';
   }
-  // Add handling for other types like enums, objects, etc.
-  return 'unknown';
+
+  return 'unknown'; // Fallback for types not covered above
 }

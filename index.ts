@@ -1,4 +1,5 @@
 import {
+  GraphQLOutputType,
   GraphQLSchema
 } from 'graphql';
 import { Example, determineGraphQLType, exampleMaker } from './util';
@@ -95,6 +96,30 @@ function createResponseSchema(schemaRef: string): Record<string, any> {
   };
 }
 
+function getGraphQLFieldType(schema: GraphQLSchema, operationType: string, fieldName: string): GraphQLOutputType {
+  let rootType;
+  
+  if (operationType === 'query') {
+    rootType = schema.getQueryType();
+  } else if (operationType === 'mutation') {
+    rootType = schema.getMutationType();
+  } else {
+    throw new Error(`Unknown operation type: ${operationType}`);
+  }
+
+  if (!rootType) {
+    throw new Error(`Root type for operation ${operationType} not found`);
+  }
+
+  const field = rootType.getFields()[fieldName];
+  if (!field) {
+    throw new Error(`Field ${fieldName} not found in operation ${operationType}`);
+  }
+
+  return field.type;
+}
+
+
 export const generateOpenAPISchema = (
   graphQLSchema: GraphQLSchema, 
   options: Partial<OpenApiSchemaOptions> = {}
@@ -112,12 +137,11 @@ export const generateOpenAPISchema = (
     components.schemas[`${exampleName}Response`] = {
       type: 'object',
       properties: {
-        // Assuming the response structure is similar to the one in createMockResponse function
-        // Update this part to reflect the actual structure of your GraphQL responses
         data: {
           type: 'object',
           properties: Object.keys(example.response.data).reduce((acc, key) => {
-            acc[key] = { type: determineGraphQLType(example.response.data[key]) }; // A helper function to determine the type
+            const fieldType = getGraphQLFieldType(graphQLSchema, example.operation, key);
+            acc[key] = { type: determineGraphQLType(fieldType) };
             return acc;
           }, {} as Record<string, { type: string }>)
         }
