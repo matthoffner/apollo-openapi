@@ -34,6 +34,21 @@ const resolvers = {
       },
     }
 };
+
+const routeMap = {
+  'hello': {
+    tags: {
+      name: 'hello-endpoint',
+      description: 'Product facing description for endpoint'
+    }
+  },
+  'updateMessage': {
+    tags: {
+      name: 'updateMessage-endpoint',
+      description: 'Product facing description for endpoint'
+    }
+  }
+}
   
 // Custom Swagger UI configuration
 const swaggerOptions = {
@@ -55,11 +70,11 @@ const server = new ApolloServer({ schema });
 
 // Initialize Express
 const corsOptions = {
-  origin: ['http://localhost:4000', 'https://chat.openai.com'], // Add other domains as needed
-  methods: ['GET', 'POST'] // Adjust methods as per your API requirements
+  origin: ['http://localhost:4000', 'https://chat.openai.com'],
+  methods: ['GET', 'POST']
 };
 const app = express();
-app.use(express.json()); // for parsing application/json
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors(corsOptions));
 
@@ -75,7 +90,7 @@ async function startServer() {
   }));
 
   // Manually define OpenAPI JSON
-  const openApiSchema = generateOpenAPISchema(schema, { exampleValues });
+  const openApiSchema = generateOpenAPISchema(schema, { exampleValues, routeMap });
 
   // Serve Swagger UI for OpenAPI documentation
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSchema, swaggerOptions));

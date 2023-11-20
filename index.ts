@@ -4,6 +4,15 @@ import {
 } from 'graphql';
 import { Example, determineGraphQLType, exampleMaker } from './util';
 
+interface RouteMap {
+  [operation: string]: {
+    tags: {
+      name: string;
+      description: string;
+    };
+  };
+}
+
 interface OpenApiSchemaOptions {
   serverUrl: string;
   title: string;
@@ -12,6 +21,7 @@ interface OpenApiSchemaOptions {
   summary: string;
   description: string;
   exampleValues: object;
+  routeMap?: RouteMap;
 }
 
 const defaultOptions: OpenApiSchemaOptions = {
@@ -24,11 +34,13 @@ const defaultOptions: OpenApiSchemaOptions = {
   exampleValues: {}
 };
 
+
 interface OpenApiOperation {
   post: {
     operationId?: string;
     'x-openai-isConsequential'?: boolean;
     summary: string;
+    tags?: string[],
     description: string;
     requestBody: {
       description: string;
@@ -124,7 +136,7 @@ export const generateOpenAPISchema = (
   graphQLSchema: GraphQLSchema, 
   options: Partial<OpenApiSchemaOptions> = {}
 ) => {
-  const { serverUrl, title, openapi, version, summary, description, exampleValues } = { ...defaultOptions, ...options };
+  const { serverUrl, title, openapi, version, summary, description, exampleValues, routeMap } = { ...defaultOptions, ...options };
   const examples = exampleMaker(graphQLSchema, exampleValues);
 
   let paths: Paths = {};
@@ -148,8 +160,11 @@ export const generateOpenAPISchema = (
       }
     };
 
+    const operationTags = routeMap?.[exampleName]?.tags ? [routeMap[exampleName].tags.name] : [];
+
     paths[`/${exampleName}`] = {
       post: {
+        ...(operationTags.length > 0 && { tags: operationTags }),
         operationId: exampleName,
         'x-openai-isConsequential': false,
         summary: example.summary,
@@ -198,6 +213,7 @@ export const generateOpenAPISchema = (
     },
     servers: [{ url: serverUrl }],
     paths: paths,
+    tags: routeMap ? Object.values(routeMap).map(route => route.tags) : undefined,
     components: components
   };
 };
